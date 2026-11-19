@@ -1,4 +1,60 @@
-const API_BASE = 'http://localhost:5000/api';
+// ==========================================
+// API URL AUTO-DETECTION
+// ==========================================
+// Priority order:
+//  1. If running on localhost → use localhost:5000
+//  2. If a custom VERCEL_API_URL is set via localStorage (manual override) → use it
+//  3. Otherwise → derive from window.location.origin (same domain, works for Vercel)
+
+const LIVE_API_URL   = 'https://notetaker-api-three.vercel.app/api';
+const LOCAL_API_URL  = 'http://localhost:5000/api';
+
+function detectApiBase() {
+  // Manual override stored by user
+  const override = localStorage.getItem('api_override');
+  if (override) return override;
+
+  const hostname = window.location.hostname;
+  // localhost / 127.x / file:// → use local dev server
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+    return LOCAL_API_URL;
+  }
+  // Deployed anywhere else → use the live Vercel API
+  return LIVE_API_URL;
+}
+
+let API_BASE = detectApiBase();
+
+// Show which URL is active in the header
+function updateApiDisplay() {
+  const el = document.getElementById('apiUrlDisplay');
+  if (el) {
+    const isLocal = API_BASE === LOCAL_API_URL;
+    el.textContent = isLocal ? 'localhost:5000 (local)' : 'Vercel (live)';
+    el.style.color = isLocal ? '#86efac' : '#fcd34d';
+  }
+}
+
+// If we opened from file:// or localhost but the local server is down,
+// fall back to the live API automatically.
+async function probeAndSetApiBase() {
+  updateApiDisplay();
+  if (API_BASE !== LOCAL_API_URL) return; // Already on live, no probe needed
+
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 2000); // 2s timeout
+    const res = await fetch(`${LOCAL_API_URL}/auth/me`, { signal: ctrl.signal });
+    clearTimeout(tid);
+    // Any real HTTP response means local server is up
+    updateApiDisplay();
+  } catch {
+    // Local server unreachable → fall back to live
+    API_BASE = LIVE_API_URL;
+    console.info('[API] Local server unreachable, switching to Vercel live API');
+    updateApiDisplay();
+  }
+}
 
 // State
 let token = localStorage.getItem('token') || '';
@@ -76,7 +132,8 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // --- INITIAL CHECK ---
-function initApp() {
+async function initApp() {
+  await probeAndSetApiBase();
   if (token && currentUser) {
     showDashboard();
   } else {
@@ -689,4 +746,4 @@ function escapeQuotes(str) {
 }
 
 // Start app
-window.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('DOMContentLoaded', () => initApp());
