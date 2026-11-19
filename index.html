@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Note-Taking Platform</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Secure Note-Taking & Interview Portal</h1>
+    <div id="authNav">
+      <span id="userInfo" style="display:none;">
+        Logged in as: <strong id="userName"></strong> (<span id="userRole"></span>)
+        <button id="logoutBtn">Logout</button>
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <div id="alertBox" class="alert hidden"></div>
+
+    <!-- Auth Section (Login / Register) -->
+    <section id="authSection" class="card">
+      <div class="tabs">
+        <button id="tabLogin" class="tab-btn active">Login</button>
+        <button id="tabRegister" class="tab-btn">Register</button>
+      </div>
+
+      <div id="loginFormContainer">
+        <h3>Login</h3>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="loginEmail" required placeholder="user@example.com">
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="loginPassword" required minlength="8" placeholder="••••••••">
+          </div>
+          <button type="submit" class="btn primary">Login</button>
+        </form>
+      </div>
+
+      <div id="registerFormContainer" class="hidden">
+        <h3>Register</h3>
+        <form id="registerForm">
+          <div class="form-group">
+            <label>Full Name:</label>
+            <input type="text" id="regName" required placeholder="e.g. John Doe">
+          </div>
+          <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="regEmail" required placeholder="user@example.com">
+          </div>
+          <div class="form-group">
+            <label>Password (min 8 chars):</label>
+            <input type="password" id="regPassword" required minlength="8" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label>Interests (comma separated):</label>
+            <input type="text" id="regInterests" placeholder="chess, reading, tech">
+          </div>
+          <button type="submit" class="btn primary">Register</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Main Dashboard -->
+    <div id="dashboardSection" class="hidden">
+      <!-- Navigation Tabs -->
+      <nav class="sub-nav">
+        <button id="navNotesBtn" class="nav-btn active">Notes</button>
+        <button id="navPostsBtn" class="nav-btn">Public Posts ($lookup view)</button>
+        <button id="navAdminUsersBtn" class="nav-btn admin-only hidden">Admin: Users Management</button>
+        <button id="navGroupedInterestsBtn" class="nav-btn admin-only hidden">Admin: Interests Aggregation</button>
+      </nav>
+
+      <!-- VIEW: NOTES -->
+      <section id="notesView" class="view-panel">
+        <div class="grid-2">
+          <!-- Create/Edit Note Card -->
+          <div class="card">
+            <h3 id="noteFormTitle">Create Note</h3>
+            <form id="noteForm">
+              <input type="hidden" id="editNoteId" value="">
+              <div class="form-group">
+                <label>Title:</label>
+                <input type="text" id="noteTitle" required maxlength="160" placeholder="Note title...">
+              </div>
+              <div class="form-group">
+                <label>Content:</label>
+                <textarea id="noteContent" rows="5" required placeholder="Note content..."></textarea>
+              </div>
+              <div class="action-buttons">
+                <button type="submit" id="saveNoteBtn" class="btn primary">Save Note</button>
+                <button type="button" id="cancelNoteBtn" class="btn secondary hidden">Cancel Edit</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Notes List -->
+          <div class="card">
+            <div class="flex-between">
+              <h3>Notes List (<span id="notesRoleScope">Your Notes</span>)</h3>
+              <button id="refreshNotesBtn" class="btn small">Refresh</button>
+            </div>
+            <div id="notesContainer" class="list-container">
+              <p>Loading notes...</p>
+            </div>
+            <!-- Pagination -->
+            <div class="pagination" id="notesPagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: PUBLIC POSTS ($lookup) -->
+      <section id="postsView" class="view-panel hidden">
+
+        <!-- Edit Post Modal (hidden by default) -->
+        <div id="editPostModal" class="modal-overlay hidden">
+          <div class="modal-box">
+            <h3>Edit Post</h3>
+            <form id="editPostForm">
+              <input type="hidden" id="editPostId">
+              <div class="form-group">
+                <label>Title:</label>
+                <input type="text" id="editPostTitle" required maxlength="160">
+              </div>
+              <div class="form-group">
+                <label>Content:</label>
+                <textarea id="editPostContent" rows="5" required></textarea>
+              </div>
+              <div class="action-buttons">
+                <button type="submit" class="btn primary">Update Post</button>
+                <button type="button" id="closeEditModal" class="btn secondary">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="posts-layout">
+          <!-- Left: Compose + Lookup -->
+          <div class="posts-sidebar">
+            <div class="card">
+              <h3>✍️ Publish a Post</h3>
+              <p class="muted" style="margin-bottom:10px;">Visible to everyone. Authors can edit/delete their own posts.</p>
+              <form id="postForm">
+                <div class="form-group">
+                  <label>Title:</label>
+                  <input type="text" id="postTitle" required maxlength="160" placeholder="Post title...">
+                </div>
+                <div class="form-group">
+                  <label>Content:</label>
+                  <textarea id="postContent" rows="4" required placeholder="Write your post here..."></textarea>
+                </div>
+                <button type="submit" class="btn primary">Publish Post</button>
+              </form>
+            </div>
+
+            <div class="card" style="margin-top:0;">
+              <h3>🔍 Scenario 2: $lookup Pipeline</h3>
+              <p class="muted" style="margin-bottom:10px;">Retrieve all posts of a specific user via a single <code>User.aggregate</code> + <code>$lookup</code> pipeline.</p>
+              <div class="form-inline">
+                <input type="text" id="lookupUserId" placeholder="Paste a User ID here...">
+                <button id="lookupPostsBtn" class="btn secondary">Fetch</button>
+              </div>
+              <button id="lookupMyPostsBtn" class="btn small" style="margin-top:6px; background:#e2e8f0; color:#334155;">Use My ID</button>
+            </div>
+          </div>
+
+          <!-- Right: Posts Result -->
+          <div class="card posts-result-panel">
+            <div class="flex-between" style="margin-bottom:10px;">
+              <h3 id="postsResultTitle">Posts</h3>
+              <button id="refreshUserPostsBtn" class="btn small">Refresh</button>
+            </div>
+            <div id="userPostsResult" class="list-container">
+              <p class="muted">Select a user to load their posts.</p>
+            </div>
+            <div class="pagination" id="userPostsPagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: ADMIN USER MANAGEMENT -->
+      <section id="adminUsersView" class="view-panel hidden">
+        <div class="grid-2">
+          <!-- Add User Card -->
+          <div class="card">
+            <h3 id="adminUserFormTitle">Admin: Create User</h3>
+            <form id="adminUserForm">
+              <input type="hidden" id="adminEditUserId" value="">
+              <div class="form-group">
+                <label>Name:</label>
+                <input type="text" id="adminUserName" required placeholder="Name">
+              </div>
+              <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="adminUserEmail" required placeholder="email@example.com">
+              </div>
+              <div class="form-group" id="adminPasswordGroup">
+                <label>Password (min 8 chars):</label>
+                <input type="password" id="adminUserPassword" placeholder="••••••••">
+                <small id="adminPassHelp" class="muted hidden">Leave empty to keep unchanged</small>
+              </div>
+              <div class="form-group">
+                <label>Role:</label>
+                <select id="adminUserRole">
+                  <option value="user">user</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Interests (comma-separated):</label>
+                <input type="text" id="adminUserInterests" placeholder="chess, reading, tech">
+              </div>
+              <div class="action-buttons">
+                <button type="submit" id="adminSaveUserBtn" class="btn primary">Create User</button>
+                <button type="button" id="adminCancelUserBtn" class="btn secondary hidden">Cancel Edit</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- All Users List -->
+          <div class="card">
+            <div class="flex-between">
+              <h3>All Users (Paginated)</h3>
+              <button id="adminRefreshUsersBtn" class="btn small">Refresh</button>
+            </div>
+            <div id="adminUsersContainer" class="list-container">
+              <p>Loading users...</p>
+            </div>
+            <div class="pagination" id="adminUsersPagination"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: ADMIN GROUPED BY INTERESTS -->
+      <section id="groupedInterestsView" class="view-panel hidden">
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <h3>Scenario 1: Users Grouped By Interests</h3>
+              <p><small>Demonstrates <code>User.aggregate()</code> single pipeline group by interest with pagination</small></p>
+            </div>
+            <button id="refreshInterestsBtn" class="btn small">Refresh</button>
+          </div>
+          <div id="interestsContainer" class="list-container" style="margin-top:15px;">
+            <p>Loading interest groups...</p>
+          </div>
+          <div class="pagination" id="interestsPagination"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
